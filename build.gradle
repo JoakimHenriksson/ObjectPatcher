@@ -1,0 +1,109 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'distribution'
+    id 'io.franzbecker.gradle-lombok' version '1.11'
+    id 'net.ltgt.apt' version '0.15'
+}
+
+ext {
+    aspectjVersion = '1.8.7'
+}
+
+group 'ObjectPatcher'
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+configurations {
+    ajc
+    aspects
+    compile {
+        extendsFrom aspects
+    }
+}
+repositories {
+    flatDir {
+        dirs "$rootProject.projectDir/libs"
+    }
+    mavenCentral()
+}
+
+lombok {
+    version = "1.16.20"
+    sha256 = ""
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile group: 'org.testng', name: 'testng', version: '6.14.2'
+    testCompile group: 'org.mockito', name: 'mockito-core', version: '2.16.0'
+    compile (
+            [group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.3'],
+            [group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.3'],
+            [group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.3']
+    )
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.11.0'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.11.0'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.11.0'
+    compile group: 'org.aspectj', name: 'aspectjrt', version: '1.8.7'
+    compile group: 'org.aspectj', name: 'aspectjweaver', version: '1.8.7'
+    ajc group: 'org.aspectj', name: 'aspectjtools', version: '1.8.7'
+    aspects group: 'com.jcabi', name: 'jcabi-aspects', version: '0.22.6'
+    compile group: 'com.jcabi', name: 'jcabi-aspects', version: '0.22.6'
+
+    compile 'com.google.guava:guava:21.0'
+//    compile 'com.squareup:javapoet:1.8.0'
+//    compileOnly group: 'com.google.auto.service', name: 'auto-service', version: '1.0-rc2'
+//    annotationProcessor group: 'com.google.auto.service', name: 'auto-service', version: '1.0-rc2'
+
+    compileOnly 'org.projectlombok:lombok:1.16.20'
+    annotationProcessor 'org.projectlombok:lombok:1.16.20'
+}
+
+jar {
+    baseName = 'objectpatcher'
+    version = '0.0.1'
+}
+
+def aspectj = { destDir, aspectPath, inpath, classpath ->
+    ant.taskdef(resource: "org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties",
+            classpath: configurations.ajc.asPath)
+
+    ant.iajc(
+            maxmem: "1024m", fork: "true", Xlint: "ignore",
+            destDir: destDir,
+            aspectPath: aspectPath,
+            inpath: inpath,
+            classpath: classpath,
+            source: project.sourceCompatibility,
+            target: project.targetCompatibility
+    )
+}
+
+compileJava {
+    doLast {
+        aspectj project.sourceSets.main.output.classesDir.absolutePath,
+                configurations.aspects.asPath,
+                project.sourceSets.main.output.classesDir.absolutePath,
+                project.sourceSets.main.output.classesDir.absolutePath
+//                project.sourceSets.main.runtimeClasspath.asPath
+    }
+}
+
+compileTestJava {
+    dependsOn jar
+
+    doLast {
+        aspectj project.sourceSets.test.output.classesDir.absolutePath,
+                configurations.aspects.asPath + jar.archivePath,
+                project.sourceSets.test.output.classesDir.absolutePath,
+                project.sourceSets.test.runtimeClasspath.asPath
+    }
+}
+
+task fatJar(type: Jar) {
+    baseName = project.name + '-all'
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
