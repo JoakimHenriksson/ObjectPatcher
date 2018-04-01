@@ -14,7 +14,7 @@ public class TestObjectPatcher {
 	@Test
 	@Loggable(Loggable.ERROR)
 	public void testPatchString() {
-		PatchableObject patchableObject = new PatchableObject();
+		PatcherObject patchableObject = new PatcherObject();
 		String json = generateJson(String.class, "quack");
 		patchableObject.patch(json);
 		Assert.assertEquals(patchableObject.string, "quack");
@@ -22,7 +22,7 @@ public class TestObjectPatcher {
 
 	@Test
 	public void testPatchInt() {
-		PatchableObject patchableObject = new PatchableObject();
+		PatcherObject patchableObject = new PatcherObject();
 		String test = generateJson(Integer.TYPE, 0);
 		patchableObject.patch(test);
 		Assert.assertEquals(patchableObject.intgr, 0);
@@ -30,7 +30,7 @@ public class TestObjectPatcher {
 
 	@Test
 	public void testPatchInteger() {
-		PatchableObject patchableObject = new PatchableObject();
+		PatcherObject patchableObject = new PatcherObject();
 		String json = generateJson(Integer.class, 24);
 		patchableObject.patch(json);
 		Assert.assertEquals(patchableObject.integer, Integer.valueOf(24));
@@ -38,23 +38,23 @@ public class TestObjectPatcher {
 
 	@Test
 	public void testSubObject() {
-		PatchableObject patchableObject = new PatchableObject();
+		PatcherObject patchableObject = new PatcherObject();
 		String json = "{\"sub\":{\"strong\":\"Quack!\"}}";
 		patchableObject.patch(json);
 		Assert.assertEquals(patchableObject.sub.getStrung(), "Quack!");
 	}
 
 	private String generateJson(Class<?> cls, String value) {
-		Optional<Field> field = Arrays.stream(PatchableObject.class.getDeclaredFields()).filter(f -> cls.isAssignableFrom(f.getType())).findFirst();
+		Optional<Field> field = Arrays.stream(PatcherObject.class.getDeclaredFields()).filter(f -> cls.isAssignableFrom(f.getType())).findFirst();
 		return field.map((f) -> String.format("{\"%s\":\"%s\"}", getFieldName(f), value)).orElse("{}");
 	}
 
 	private String generateJson(Class<?> cls, Number value) {
-		Optional<Field> field = Arrays.stream(PatchableObject.class.getDeclaredFields()).filter(f -> cls.isAssignableFrom(f.getType())).findFirst();
+		Optional<Field> field = Arrays.stream(PatcherObject.class.getDeclaredFields()).filter(f -> cls.isAssignableFrom(f.getType())).findFirst();
 		return field.map((f) -> String.format("{\"%s\":%s}", getFieldName(f), value)).orElse("{}");
 	}
 
 	private String getFieldName(Field field) {
-		return ObjectPatcher.getAnnotation(field).map(JsonProperty::value).orElse(field.getName());
+		return ObjectPatcher.getAnnotation(field, JsonProperty.class).map(JsonProperty::value).orElse(field.getName());
 	}
 }

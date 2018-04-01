@@ -8,7 +8,7 @@ import java.util.*;
 
 @ToString
 @EqualsAndHashCode(callSuper = true)
-class PatchableObject extends Patchable {
+class PatcherObject extends Patcher {
 	@JsonProperty("duck")
 	public String string = "Duck";
 

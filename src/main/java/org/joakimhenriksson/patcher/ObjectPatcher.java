@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ValueNode;
 import com.jcabi.aspects.Loggable;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.String;
@@ -26,43 +28,23 @@ import java.util.function.Predicate;
 
 @Slf4j
 public class ObjectPatcher {
+	protected static final int LOGLEVEL = Loggable.ERROR;
 	private static final String GET = "get";
 	private static final String SET = "set";
+	protected static final Logger LOGGER = LoggerFactory.getLogger(ObjectPatcher.class);
 
-	private static final ObjectMapper objectMapper = new ObjectMapper();
+	protected static final ObjectMapper objectMapper = new ObjectMapper();
 
-	@Loggable(Loggable.TRACE)
-	public static <T> Optional<T> PATCH(String json, T patchable) throws PatcherException {
-		try {
-			JsonNode tree = objectMapper.readTree(json);
-			return PATCH(tree, patchable);
-		} catch (IOException e) {
-			throw new PatcherException("Unable to json unmarshall json-string: " + json, e);
-		}
+	public static Predicate<String> whiteList(Set<String> whiteList) {
+		return s -> whiteList.contains(s);
 	}
 
-	@Loggable(Loggable.TRACE)
-	public static <T> Optional<T> PATCH(JsonNode tree, T patchable) {
-		Optional<T> result = Optional.ofNullable(patchable);
-		if (tree.isContainerNode() && !tree.isArray() && !isContainer(patchable)) {
-			tree.fields().forEachRemaining((entry) -> PATCH_FIELD(entry.getKey(), entry.getValue(), patchable));
-		}
-		return result;
+	public static Predicate<String> blackList(Set<String> blackList) {
+		return s -> !blackList.contains(s);
 	}
 
-	@Loggable(Loggable.TRACE)
-	public static <T> void PATCH_FIELD(String name, JsonNode tree, T patchable) {
-		if (tree.isContainerNode()) {
-			getFieldValue(name, patchable)
-			.flatMap((value) -> PATCH(tree, value));
-		} else if (tree.isValueNode()) {
-			getOptionalFieldValue((ValueNode) tree)
-			.ifPresent((value) -> setFieldValue(name, patchable, value));
-		}
-	}
-
-	@Loggable(Loggable.TRACE)
-	private static <T> void setFieldValue(String name, T patchable, Object value) {
+	@Loggable(LOGLEVEL)
+	protected static <T> void setFieldValue(String name, T patchable, Object value) {
 		Class<?> cls = patchable.getClass();
 		Optional<Method> method = getMethod(SET, name, cls);
 		if (method.isPresent()) {
@@ -71,14 +53,15 @@ public class ObjectPatcher {
 				return;
 			} catch (IllegalAccessException | InvocationTargetException ignored) {}
 		}
-		getField(name, cls).ifPresent((field) -> setValue(field, patchable, value));
+		getField(name, cls).ifPresent((field) -> setFieldValue(field, patchable, value));
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static <T> Optional<Object> getFieldValue(String name, T patchable) {
+	@Loggable(LOGLEVEL)
+	protected static <T> Optional<Object> getFieldValue(String name, T patchable) {
 		Class<?> cls = patchable.getClass();
 		Optional<Method> method = getMethod(GET, name, cls);
 		if (method.isPresent()) {
+			Optional<Object> methodValue = null;
 			try {
 				return Optional.ofNullable(method.get().invoke(patchable));
 			} catch (IllegalAccessException | InvocationTargetException ignored) {}
@@ -86,8 +69,8 @@ public class ObjectPatcher {
 		return getField(name, cls).flatMap((f) -> getFieldValue(f, patchable));
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static void setValue(Field field, Object o, Object value) {
+	@Loggable(LOGLEVEL)
+	protected static void setFieldValue(Field field, Object o, Object value) {
 		boolean accessible = field.isAccessible();
 		field.setAccessible(true);
 		try {
@@ -99,8 +82,8 @@ public class ObjectPatcher {
 		}
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Optional<Object> getFieldValue(Field field, Object o) {
+	@Loggable(LOGLEVEL)
+	protected static Optional<Object> getFieldValue(Field field, Object o) {
 		try {
 			return Optional.ofNullable(field.get(o));
 		} catch (IllegalAccessException e) {
@@ -108,48 +91,48 @@ public class ObjectPatcher {
 		}
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Optional<Method> getSetMethod(String name, Class<?> cls) {
+	@Loggable(LOGLEVEL)
+	protected static Optional<Method> getSetMethod(String name, Class<?> cls) {
 		return getMethod(SET, name, cls);
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Optional<Method> getGetMethod(String name, Class<?> cls) {
+	@Loggable(LOGLEVEL)
+	protected static Optional<Method> getGetMethod(String name, Class<?> cls) {
 		return getMethod(GET, name, cls);
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Optional<Method> getMethod(String prefix, String name, Class<?> cls) {
+	@Loggable(LOGLEVEL)
+	protected static Optional<Method> getMethod(String prefix, String name, Class<?> cls) {
 		return Arrays.stream(cls.getDeclaredMethods())
-			       .filter(isAnnotated(name))
+			       .filter(isAnnotated(JsonProperty.class, (JsonProperty property) -> property.value().equals(name)))
 			       .filter(method -> method.getName().startsWith(prefix))
 			       .findFirst();
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static <T extends Annotation> Predicate<AccessibleObject> isAnnotated(String value) {
-		return accessibleObject -> getAnnotation(accessibleObject).map((annotation) -> annotation.value().equals(value)).orElse(false);
+	@Loggable(LOGLEVEL)
+	protected static <T extends Annotation> Predicate<AccessibleObject> isAnnotated(Class<T> annotationClass, Predicate<T> annotationPredicate) {
+		return accessibleObject -> getAnnotation(accessibleObject, annotationClass).filter(annotationPredicate).map(x -> true).orElse(false);
 	}
 
-	@Loggable(Loggable.TRACE)
-	public static Optional<JsonProperty> getAnnotation(AccessibleObject accessibleObject) {
-		return Optional.ofNullable(accessibleObject.getAnnotation(JsonProperty.class));
+	@Loggable(LOGLEVEL)
+	protected static <T extends Annotation> Optional<T> getAnnotation(AccessibleObject accessibleObject, Class<T> annotationClass) {
+		return Optional.ofNullable(accessibleObject.getAnnotation(annotationClass));
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Optional<Field> getField(String name, Class<?> cls) {
+	@Loggable(LOGLEVEL)
+	protected static Optional<Field> getField(String name, Class<?> cls) {
 		Optional<Field> optionalField;
 		try {
 			optionalField = Optional.of(cls.getField(name));
 		} catch (NoSuchFieldException e) {
 			optionalField = Optional.empty();
 		}
-		Optional<Field> annotatedField = Arrays.stream(cls.getDeclaredFields()).filter(isAnnotated(name)).findFirst();
+		Optional<Field> annotatedField = Arrays.stream(cls.getDeclaredFields()).filter(isAnnotated(JsonProperty.class, jsonProperty -> jsonProperty.value().equals(name))).findFirst();
 		return annotatedField.isPresent() ? annotatedField : optionalField;
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static boolean isContainer(Object o) {
+	@Loggable(LOGLEVEL)
+	protected static boolean isContainer(Object o) {
 		Class<?> cls = o.getClass();
 		return
 			Map.class.isAssignableFrom(cls) ||
@@ -158,13 +141,13 @@ public class ObjectPatcher {
 			Collection.class.isAssignableFrom(cls);
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Optional<Object> getOptionalFieldValue(ValueNode value) {
+	@Loggable(LOGLEVEL)
+	protected static Optional<Object> getOptionalFieldValue(ValueNode value) {
 		return Optional.ofNullable(getFieldValue(value));
 	}
 
-	@Loggable(Loggable.TRACE)
-	private static Object getFieldValue(ValueNode value) {
+	@Loggable(LOGLEVEL)
+	protected static Object getFieldValue(ValueNode value) {
 		if (value.isTextual()) {
 			return value.asText();
 		}
