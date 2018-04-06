@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ValueNode;
+import com.google.common.collect.Sets;
 import com.jcabi.aspects.Loggable;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -18,13 +19,15 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
-
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 public class ObjectPatcher {
@@ -35,12 +38,12 @@ public class ObjectPatcher {
 
 	protected static final ObjectMapper objectMapper = new ObjectMapper();
 
-	public static Predicate<String> whiteList(Set<String> whiteList) {
-		return s -> whiteList.contains(s);
+	public static Predicate<Map.Entry<String, JsonNode>> whiteList(Set<String> whiteList) {
+		return e -> whiteList.contains(e.getKey());
 	}
 
-	public static Predicate<String> blackList(Set<String> blackList) {
-		return s -> !blackList.contains(s);
+	public static Predicate<Map.Entry<String, JsonNode>> blackList(Set<String> blackList) {
+		return e -> !blackList.contains(e.getKey());
 	}
 
 	@Loggable(LOGLEVEL)
@@ -129,6 +132,12 @@ public class ObjectPatcher {
 		}
 		Optional<Field> annotatedField = Arrays.stream(cls.getDeclaredFields()).filter(isAnnotated(JsonProperty.class, jsonProperty -> jsonProperty.value().equals(name))).findFirst();
 		return annotatedField.isPresent() ? annotatedField : optionalField;
+	}
+
+	@Loggable(LOGLEVEL)
+	protected static <R> Stream<R> stream(Iterator<R> iterator) {
+		Iterable<R> iterable = () -> iterator;
+		return StreamSupport.stream(iterable.spliterator(), false);
 	}
 
 	@Loggable(LOGLEVEL)
