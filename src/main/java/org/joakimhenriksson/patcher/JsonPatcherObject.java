@@ -8,7 +8,7 @@ import java.util.*;
 
 @ToString
 @EqualsAndHashCode(callSuper = true)
-class PatcherObject extends Patcher {
+class JsonPatcherObject extends JsonPatcher {
 	@JsonProperty("duck")
 	public String string = "Duck";
 
@@ -18,6 +18,10 @@ class PatcherObject extends Patcher {
 
 	@JsonProperty("integer")
 	public Integer integer = 42;
+
+	@JsonProperty("blackListedInteger")
+	@BlackListed
+	public Integer blackListedInteger;
 
 	@JsonProperty("map")
 	public Map<String, String> map = new HashMap<>();
@@ -36,4 +40,15 @@ class PatcherObject extends Patcher {
 
 	@JsonProperty("subNull")
 	public PatchableSubObject subNull = null;
+
+	@JsonProperty("set")
+	public void setSet(Set<String> set) {
+		this.set = set;
+	}
+
+	@JsonProperty("set")
+	@BlackListed
+	public Set<String> getSet() {
+		return set;
+	}
 }

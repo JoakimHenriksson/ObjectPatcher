@@ -12,13 +12,11 @@ public class PatchableSubObject {
 
 	@JsonProperty("strong")
 	public String getStrung() {
-		System.out.println("Getter");
 		return strung;
 	}
 
 	@JsonProperty("strong")
 	private void setStrung(String strung) {
-		System.out.println("Setter");
 		this.strung = strung;
 	}
 }

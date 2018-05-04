@@ -2,7 +2,7 @@ package org.joakimhenriksson.patcher;
 
 public class Main {
 	public static void main(String[] argv) {
-		PatcherObject patchableObject = new PatcherObject();
+		JsonPatcherObject patchableObject = new JsonPatcherObject();
 		String json = "{\"sub\":{\"strong\":\"Quack!\"}}";
 		patchableObject.patch(json);
 		System.out.println("Duck: " + patchableObject);
