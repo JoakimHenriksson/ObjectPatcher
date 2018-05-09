@@ -1,5 +1,6 @@
 package org.joakimhenriksson.patcher;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ValueNode;
 import com.jcabi.aspects.Loggable;
@@ -38,11 +39,11 @@ public class RecursivePatcherJson extends JsonObjectPatcher {
 	@Loggable(LOGLEVEL)
 	public static <T> void PATCH_FIELD(String name, JsonNode tree, T patchable, Predicate<Map.Entry<String, JsonNode>> predicate) {
 		if (tree.isContainerNode()) {
-			getFieldValue(name, patchable)
+			getFieldValue(name, patchable, withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals(name)))
 				.flatMap((value) -> PATCH(tree, value, predicate));
 		} else if (tree.isValueNode()) {
 			getOptionalFieldValue((ValueNode) tree)
-				.ifPresent((value) -> setFieldValue(name, patchable, value));
+				.ifPresent((value) -> setFieldValue(name, patchable, value, withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals(name))));
 		}
 	}
 }

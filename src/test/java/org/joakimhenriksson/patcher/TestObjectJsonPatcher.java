@@ -15,8 +15,6 @@ import java.util.function.Predicate;
 
 @Test
 public class TestObjectJsonPatcher {
-	final static String PREFIX = "****-****-****-";
-
 	@Test
 	@Loggable(Loggable.ERROR)
 	public void testPatchString() {
@@ -89,22 +87,22 @@ public class TestObjectJsonPatcher {
 
 	@Test
 	public void testIsAnnotated() throws NoSuchFieldException {
-		Predicate<AccessibleObject> blackListPredicate = JsonObjectPatcher.withoutAnnotation(BlackListed.class);
+		Predicate<AccessibleObject> whiteListPredicate = JsonObjectPatcher.withoutAnnotation(BlackListed.class);
 		Predicate<AccessibleObject> integerPredicate = JsonObjectPatcher.withAnnotation(JsonProperty.class, x -> x.value().contains("integer"));
 
 		Field field = JsonPatcherObject.class.getDeclaredField("blackListedInteger");
-		Assert.assertFalse(blackListPredicate.test(field));
+		Assert.assertFalse(whiteListPredicate.test(field));
 		Assert.assertFalse(integerPredicate.test(field));
 
 		field = JsonPatcherObject.class.getDeclaredField("integer");
-		Assert.assertTrue(blackListPredicate.test(field));
+		Assert.assertTrue(whiteListPredicate.test(field));
 		Assert.assertTrue(integerPredicate.test(field));
 	}
 
 	@Test
 	public void testInvoke() {
 		JsonPatcherObject po = new JsonPatcherObject();
-		Optional<Method> method = JsonObjectPatcher.getMethod("set", "set", JsonPatcherObject.class);
+		Optional<Method> method = JsonObjectPatcher.getMethod("set", "set", JsonPatcherObject.class, JsonObjectPatcher.withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals("set")));
 		Assert.assertTrue(method.isPresent());
 		JsonObjectPatcher.invoke(method, po, Sets.newHashSet("Duck"));
 		Assert.assertTrue(po.set.contains("Duck"));

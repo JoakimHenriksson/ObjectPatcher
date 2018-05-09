@@ -48,14 +48,14 @@ public class JsonObjectPatcher {
 	}
 
 	@Loggable(LOGLEVEL)
-	protected static <T> void setFieldValue(@NotNull String name, @NotNull T patchable, Object value) {
+	protected static <T> void setFieldValue(@NotNull String name, @NotNull T patchable, Object value, Predicate<AccessibleObject> predicate) {
 		Class<?> cls = patchable.getClass();
-		Optional<Method> method = getMethod(SET, name, cls);
+		Optional<Method> method = getMethod(SET, name, cls, predicate);
 		try {
 			invoke(method, patchable, value);
 			return;
 		} catch (PatcherException ignored) {}
-		getField(name, cls).ifPresent(field -> setFieldValue(field, patchable, value));
+		getField(name, cls, predicate).ifPresent(field -> setFieldValue(field, patchable, value));
 	}
 
 	@Loggable(LOGLEVEL)
@@ -72,13 +72,13 @@ public class JsonObjectPatcher {
 	}
 
 	@Loggable(LOGLEVEL)
-	protected static <T> Optional<Object> getFieldValue(@NotNull String name, @NotNull T patchable) {
+	protected static <T> Optional<Object> getFieldValue(@NotNull String name, @NotNull T patchable, Predicate<AccessibleObject> predicate) {
 		Class<?> cls = patchable.getClass();
-		Optional<Method> method = getMethod(GET, name, cls);
+		Optional<Method> method = getMethod(GET, name, cls, predicate);
 		try {
 			return Optional.ofNullable(invoke(method, patchable));
 		} catch (PatcherException ignored) {}
-		return getField(name, cls).flatMap((f) -> getFieldValue(f, patchable));
+		return getField(name, cls, predicate).flatMap((f) -> getFieldValue(f, patchable));
 	}
 
 	@Loggable(LOGLEVEL)
@@ -110,21 +110,21 @@ public class JsonObjectPatcher {
 	}
 
 	@Loggable(LOGLEVEL)
-	protected static Optional<Method> getMethod(@NotNull String prefix, @NotNull String name, @NotNull Class<?> cls) {
+	protected static Optional<Method> getMethod(@NotNull String prefix, @NotNull String name, @NotNull Class<?> cls, Predicate<AccessibleObject> predicate) {
 			return Arrays.stream(cls.getDeclaredMethods())
-			       .filter(withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals(name)))
+			       .filter(predicate)
 			       .filter(method -> method.getName().startsWith(prefix))
 			       .findFirst();
 	}
 
 	@Loggable(LOGLEVEL)
 	protected static <T extends Annotation> Predicate<AccessibleObject> withAnnotation(@NotNull Class<T> annotationClass) {
-		return accessibleObject -> getAnnotation(accessibleObject, annotationClass).map(x -> true).orElse(false);
+		return withAnnotation(annotationClass, x -> true);
 	}
 
 	@Loggable(LOGLEVEL)
 	protected static <T extends Annotation> Predicate<AccessibleObject> withoutAnnotation(@NotNull Class<T> annotationClass) {
-		return accessibleObject -> getAnnotation(accessibleObject, annotationClass).map(x -> false).orElse(true);
+		return withAnnotation(annotationClass).negate();
 	}
 
 	@Loggable(LOGLEVEL)
@@ -134,7 +134,7 @@ public class JsonObjectPatcher {
 
 	@Loggable(LOGLEVEL)
 	protected static <T extends Annotation> Predicate<AccessibleObject> withoutAnnotation(@NotNull Class<T> annotationClass, @NotNull Predicate<T> annotationPredicate) {
-		return accessibleObject -> getAnnotation(accessibleObject, annotationClass).filter(annotationPredicate).map(x -> false).orElse(true);
+		return withAnnotation(annotationClass, annotationPredicate).negate();
 	}
 
 	@Loggable(LOGLEVEL)
@@ -144,13 +144,18 @@ public class JsonObjectPatcher {
 
 	@Loggable(LOGLEVEL)
 	@NotNull protected static Optional<Field> getField(@NotNull String name, @NotNull Class<?> cls) {
+		return getField(name, cls, withAnnotation(JsonProperty.class, jsonProperty -> jsonProperty.value().equals(name)));
+	}
+
+	@Loggable(LOGLEVEL)
+	@NotNull protected static Optional<Field> getField(@NotNull String name, @NotNull Class<?> cls, Predicate<AccessibleObject> fieldAnnotationPredicate) {
 		Optional<Field> optionalField;
 		try {
 			optionalField = Optional.of(cls.getField(name));
 		} catch (NoSuchFieldException e) {
 			optionalField = Optional.empty();
 		}
-		Optional<Field> annotatedField = Arrays.stream(cls.getDeclaredFields()).filter(withAnnotation(JsonProperty.class, jsonProperty -> jsonProperty.value().equals(name))).findFirst();
+		Optional<Field> annotatedField = Arrays.stream(cls.getDeclaredFields()).filter(fieldAnnotationPredicate).findFirst();
 		return annotatedField.isPresent() ? annotatedField : optionalField;
 	}
 
@@ -174,16 +179,13 @@ public class JsonObjectPatcher {
 
 	@Loggable(LOGLEVEL)
 	protected static Optional<Object> getOptionalFieldValue(ValueNode value) {
-		return Optional.ofNullable(getFieldValue(value));
+		return Optional.of(getFieldValue(value));
 	}
 
 	@Loggable(LOGLEVEL)
 	@NotNull protected static Object getFieldValue(@NotNull ValueNode value) {
 		if (value.isTextual()) {
 			return value.asText();
-		}
-		if (value.isTextual()) {
-			return value.textValue();
 		}
 		if (value.isBoolean()) {
 			return value.asBoolean();

@@ -1,5 +1,6 @@
 package org.joakimhenriksson.patcher;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ValueNode;
 import com.jcabi.aspects.Loggable;
@@ -39,7 +40,7 @@ public class SimplePatcherJson extends JsonObjectPatcher {
 	public static <T> void PATCH_FIELD(String name, JsonNode tree, T patchable) {
 		if (tree.isValueNode()) {
 			getOptionalFieldValue((ValueNode) tree)
-				.ifPresent((value) -> setFieldValue(name, patchable, value));
+				.ifPresent((value) -> setFieldValue(name, patchable, value, withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals(name))));
 		}
 	}
 }
