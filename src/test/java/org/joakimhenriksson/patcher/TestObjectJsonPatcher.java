@@ -26,14 +26,14 @@ public class TestObjectJsonPatcher {
 
 	@Test
 	public void testWhiteList() {
-		Predicate<Map.Entry<String, JsonNode>> predicate = JsonObjectPatcher.whiteList(Sets.newHashSet("duck"));
+		Predicate<Map.Entry<String, JsonNode>> predicate = ObjectPatcher.whiteList(Sets.newHashSet("duck"));
 		AbstractMap.SimpleEntry<String, JsonNode> entry = new AbstractMap.SimpleEntry<String, JsonNode>("duck", null);
 		Assert.assertTrue(predicate.test(entry));
 	}
 
 	@Test
 	public void testBlackList() {
-		Predicate<Map.Entry<String, JsonNode>> predicate = JsonObjectPatcher.blackList(Sets.newHashSet("duck"));
+		Predicate<Map.Entry<String, JsonNode>> predicate = ObjectPatcher.blackList(Sets.newHashSet("duck"));
 		AbstractMap.SimpleEntry<String, JsonNode> entry = new AbstractMap.SimpleEntry<String, JsonNode>("duck", null);
 		Assert.assertFalse(predicate.test(entry));
 	}
@@ -58,11 +58,11 @@ public class TestObjectJsonPatcher {
 	public void testPatchWithPositiveFilter() {
 		JsonPatcherObject patchableObject = new JsonPatcherObject();
 		String json = generateJson(Integer.class, 24);
-		patchableObject.patch(json, JsonObjectPatcher.whiteList(Sets.newHashSet("integer")));
+		patchableObject.patch(json, ObjectPatcher.whiteList(Sets.newHashSet("integer")));
 		Assert.assertEquals(patchableObject.integer, Integer.valueOf(24));
 
 		json = generateJson(Integer.class, 42);
-		patchableObject.patch(json, JsonObjectPatcher.whiteList(Sets.newHashSet("intgr")));
+		patchableObject.patch(json, ObjectPatcher.whiteList(Sets.newHashSet("intgr")));
 		Assert.assertEquals(patchableObject.integer, Integer.valueOf(24));
 	}
 
@@ -70,10 +70,10 @@ public class TestObjectJsonPatcher {
 	public void testPatchWithNegativeFilter() {
 		JsonPatcherObject patchableObject = new JsonPatcherObject();
 		String json = generateJson(Integer.class, 24);
-		patchableObject.patch(json, JsonObjectPatcher.blackList(Sets.newHashSet("integer")));
+		patchableObject.patch(json, ObjectPatcher.blackList(Sets.newHashSet("integer")));
 		Assert.assertEquals(patchableObject.integer, Integer.valueOf(42));
 
-		patchableObject.patch(json, JsonObjectPatcher.blackList(Sets.newHashSet("intgr")));
+		patchableObject.patch(json, ObjectPatcher.blackList(Sets.newHashSet("intgr")));
 		Assert.assertEquals(patchableObject.integer, Integer.valueOf(24));
 	}
 
@@ -87,8 +87,8 @@ public class TestObjectJsonPatcher {
 
 	@Test
 	public void testIsAnnotated() throws NoSuchFieldException {
-		Predicate<AccessibleObject> whiteListPredicate = JsonObjectPatcher.withoutAnnotation(BlackListed.class);
-		Predicate<AccessibleObject> integerPredicate = JsonObjectPatcher.withAnnotation(JsonProperty.class, x -> x.value().contains("integer"));
+		Predicate<AccessibleObject> whiteListPredicate = ObjectPatcher.withoutAnnotation(BlackListed.class);
+		Predicate<AccessibleObject> integerPredicate = ObjectPatcher.withAnnotation(JsonProperty.class, x -> x.value().contains("integer"));
 
 		Field field = JsonPatcherObject.class.getDeclaredField("blackListedInteger");
 		Assert.assertFalse(whiteListPredicate.test(field));
@@ -102,9 +102,9 @@ public class TestObjectJsonPatcher {
 	@Test
 	public void testInvoke() {
 		JsonPatcherObject po = new JsonPatcherObject();
-		Optional<Method> method = JsonObjectPatcher.getMethod("set", "set", JsonPatcherObject.class, JsonObjectPatcher.withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals("set")));
+		Optional<Method> method = ObjectPatcher.getMethod("set", "set", JsonPatcherObject.class, ObjectPatcher.withAnnotation(JsonProperty.class, (JsonProperty property) -> property.value().equals("set")));
 		Assert.assertTrue(method.isPresent());
-		JsonObjectPatcher.invoke(method, po, Sets.newHashSet("Duck"));
+		ObjectPatcher.invoke(method, po, Sets.newHashSet("Duck"));
 		Assert.assertTrue(po.set.contains("Duck"));
 	}
 
@@ -119,6 +119,6 @@ public class TestObjectJsonPatcher {
 	}
 
 	private String getFieldName(Field field) {
-		return JsonObjectPatcher.getAnnotation(field, JsonProperty.class).map(JsonProperty::value).orElse(field.getName());
+		return ObjectPatcher.getAnnotation(field, JsonProperty.class).map(JsonProperty::value).orElse(field.getName());
 	}
 }
